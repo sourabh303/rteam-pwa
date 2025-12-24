@@ -5,22 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px 20px; background: #f8fafc; }
-        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; text-align: center; padding-top: 20%; background: #f8fafc; }
         #installBtn { 
             padding: 16px 32px; font-size: 18px; font-weight: bold;
             background: #1e56ce; color: white; border: none; border-radius: 50px;
-            cursor: pointer; display: none; margin-top: 20px;
+            cursor: pointer; display: none; box-shadow: 0 4px 15px rgba(30,86,206,0.3);
         }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>RTeam Hub</h1>
-        <p>Click below to install the Attendance Scanner to your home screen.</p>
-        <button id="installBtn">INSTALL APP</button>
-        <p id="msg">Please wait...</p>
-    </div>
+    <h1>RTeam Hub</h1>
+    <p>Install the scanner app to your home screen:</p>
+    <button id="installBtn">INSTALL NOW</button>
 
     <script>
         if ('serviceWorker' in navigator) {
@@ -32,7 +28,6 @@
             e.preventDefault();
             deferredPrompt = e;
             document.getElementById('installBtn').style.display = 'inline-block';
-            document.getElementById('msg').style.display = 'none';
         });
 
         document.getElementById('installBtn').addEventListener('click', async () => {
