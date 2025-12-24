@@ -3,6 +3,6 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Keeps the app working
+  // Required by Chrome for PWA installation
   e.respondWith(fetch(e.request));
 });
