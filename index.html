@@ -1,35 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>RTeam Hub Installer</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
-    }
-  </script>
+    <title>Install RTeam Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 20%; background: #f8fafc; }
+        #installBtn { 
+            padding: 16px 32px; font-size: 18px; font-weight: bold;
+            background: #1e56ce; color: white; border: none; border-radius: 50px;
+            cursor: pointer; display: none; box-shadow: 0 4px 15px rgba(30,86,206,0.3);
+        }
+    </style>
 </head>
-<body style="text-align:center; font-family:sans-serif; padding:50px;">
-  <h1>RTeam Hub</h1>
-  <p>Click below to install the scanner to your home screen.</p>
-  <button id="installBtn" style="padding:15px 30px; background:#1e56ce; color:white; border:none; border-radius:10px; font-weight:bold; display:none;">
-    INSTALL APP
-  </button>
-  <script>
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      document.getElementById('installBtn').style.display = 'inline-block';
-    });
+<body>
+    <h1>RTeam Hub</h1>
+    <p>Install the scanner app to your home screen:</p>
+    <button id="installBtn">INSTALL NOW</button>
 
-    document.getElementById('installBtn').addEventListener('click', () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt = null;
-      }
-    });
-  </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBtn').style.display = 'inline-block';
+        });
+
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('installBtn').style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        });
+    </script>
 </body>
 </html>
