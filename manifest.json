@@ -1,8 +1,7 @@
 {
   "name": "RTeam Hub Attendance",
   "short_name": "RTeam Hub",
-  "start_url": "https://script.google.com/macros/s/AKfycbzNp7960JWjeDPKH64zH-8ozh07BlxKZdjQVafNfd5A0CXeF_vHCG2o0Zo-ayveuIG5nQ/exec",
-  "scope": "/",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#1e56ce",
   "theme_color": "#1e56ce",
