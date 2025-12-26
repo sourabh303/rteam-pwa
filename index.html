@@ -1,45 +1,120 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Install RTeam Hub</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="manifest" href="manifest.json">
-    <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 20%; background: #f8fafc; }
-        #installBtn { 
-            padding: 16px 32px; font-size: 18px; font-weight: bold;
-            background: #1e56ce; color: white; border: none; border-radius: 50px;
-            cursor: pointer; display: none; box-shadow: 0 4px 15px rgba(30,86,206,0.3);
-        }
-    </style>
+  <meta charset="utf-8">
+  <title>RTeam Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+    html, body { height: 100%; width: 100%; overflow: hidden; font-family: sans-serif; }
+    .header { background: #1e56ce; color: white; padding: 1rem 1.2rem; padding-top: max(1rem, env(safe-area-inset-top)); }
+    .scanner-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; position: relative; }
+    #reader { width: 100% !important; height: 100% !important; }
+    #reader video { object-fit: cover !important; }
+    .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); z-index: 9999; text-align: center; width: 80%; }
+  </style>
 </head>
-<body>
-    <h1>RTeam Hub</h1>
-    <p>Install the scanner app to your home screen:</p>
-    <button id="installBtn">INSTALL NOW</button>
+<body class="flex flex-col h-full bg-slate-50">
+  <audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+  <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" preload="auto"></audio>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
+  <header class="header flex justify-between items-center shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="h-9 w-9 bg-white rounded-lg p-1 flex items-center justify-center font-bold text-blue-700">RT</div>
+      <div class="text-xl font-black tracking-tight">RTeam Hub</div>
+    </div>
+    <div id="statusText" class="text-[10px] font-bold bg-white/20 px-3 py-1 rounded-full uppercase">Ready</div>
+  </header>
 
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installBtn').style.display = 'inline-block';
+  <main class="scanner-wrapper">
+    <div id="reader"></div>
+  </main>
+
+  <footer class="p-6 text-center bg-white border-t">
+    <button id="installBtn" class="hidden mb-4 bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow-lg w-full">Install App</button>
+    <div class="font-bold text-slate-800">Attendance Scanner</div>
+    <div class="text-xs text-slate-400 mt-1 uppercase tracking-widest">Center QR in frame</div>
+  </footer>
+
+  <script>
+    // 1. SERVICE WORKER
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    // 2. INSTALL LOGIC
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.remove('hidden');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') installBtn.classList.add('hidden');
+        deferredPrompt = null;
+      }
+    });
+
+    // 3. SCANNER & API LOGIC
+    const GAS_URL = "YOUR_APPS_SCRIPT_DEPLOY_URL"; // PASTE YOUR URL HERE
+    let isScanning = false;
+
+    function showToast(icon, title, message, isSuccess) {
+      const audio = document.getElementById(isSuccess ? 'soundSuccess' : 'soundError');
+      audio.play().catch(() => {});
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<div class="text-6xl mb-4">${icon}</div><div class="text-2xl font-black">${title}</div><div class="text-slate-500 mt-2">${message}</div>`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    async function onScanSuccess(decodedText) {
+      if (isScanning) return;
+      isScanning = true;
+      document.getElementById('statusText').textContent = 'Syncing...';
+
+      try {
+        const data = JSON.parse(decodedText);
+        
+        // Sending to GAS via POST
+        fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors', 
+          body: JSON.stringify({ workerId: data.id || "Unknown" })
+        })
+        .then(() => {
+          showToast('✅', 'Success', `${data.id || 'User'} Recorded`, true);
+          resetScanner();
+        })
+        .catch(() => {
+          showToast('❌', 'Error', 'Failed to save', false);
+          resetScanner();
         });
 
-        document.getElementById('installBtn').addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    document.getElementById('installBtn').style.display = 'none';
-                }
-                deferredPrompt = null;
-            }
-        });
-    </script>
+      } catch (e) {
+        showToast('⚠️', 'Invalid QR', 'Not a valid code', false);
+        resetScanner();
+      }
+    }
+
+    function resetScanner() {
+      setTimeout(() => { isScanning = false; document.getElementById('statusText').textContent = 'Ready'; }, 3000);
+    }
+
+    window.onload = () => {
+      const scanner = new Html5Qrcode("reader");
+      scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
+    };
+  </script>
 </body>
 </html>
