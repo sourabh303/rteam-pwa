@@ -9,20 +9,18 @@
   <meta name="theme-color" content="#1e56ce">
 
   <style>
-    /* 1. Dynamic Viewport Height Fix */
     body { 
       font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; 
       background-color: #f8fafc; 
       margin: 0; 
       display: flex; 
       flex-direction: column; 
-      height: 100vh; 
-      height: 100dvh; /* Uses the actual viewable height on mobile */
+      height: 100dvh; 
       overflow: hidden; 
     }
 
     .header { 
-      flex-shrink: 0; /* Prevents header from squishing */
+      flex-shrink: 0; 
       background: #1e56ce; 
       color: white; 
       padding: 1rem 1.2rem; 
@@ -34,61 +32,61 @@
 
     .scanner-wrapper { 
       flex: 1; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
+      min-height: 0; 
       background: #000; 
       position: relative; 
-      overflow: hidden; /* Keeps scanner contained */
+      overflow: hidden; 
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    #reader { width: 100% !important; height: 100% !important; }
-    #reader video { object-fit: cover !important; }
+    #reader { width: 100% !important; }
 
-    /* 2. Footer Adjustment for Mobile Bottom Bars */
     footer { 
-      flex-shrink: 0; /* Prevents footer from squishing */
-      padding: 1rem 1.5rem; 
+      flex-shrink: 0; 
+      padding: 1.25rem 1.5rem; 
       padding-bottom: calc(1rem + env(safe-area-inset-bottom)); 
       text-align: center; 
       background: white; 
-      border-top: 1px solid #e2e8f0; 
+      border-top: 1px solid #e2e8f0;
+      z-index: 10; 
     }
+
+    .status-badge { 
+      font-size: 10px; 
+      font-weight: 700; 
+      padding: 0.25rem 0.75rem; 
+      border-radius: 9999px; 
+      transition: background 0.3s ease;
+      text-transform: uppercase;
+    }
+    .status-ready { background: #22c55e; color: white; }
+    .status-syncing { background: #eab308; color: white; }
 
     .btn-install { 
       width: 100%; 
       background: #2563eb; 
       color: white; 
-      padding: 0.75rem 1.5rem; 
+      padding: 0.85rem; 
       border-radius: 12px; 
       font-weight: 700; 
       border: none; 
       margin-bottom: 0.75rem; 
       cursor: pointer; 
-      display: none; /* Controlled by JS */
+      display: none; /* Hidden by default */
       box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    /* CSS FIX: Hide button automatically if already in standalone app mode */
+    @media (display-mode: standalone) {
+      .btn-install { display: none !important; }
     }
 
     .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); z-index: 9999; text-align: center; width: 80%; }
   </style>
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js');
-      });
-    }
-
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      const btn = document.getElementById('installBtn');
-      if (btn) btn.style.display = 'block';
-    });
-  </script>
 </head>
 <body>
   <audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
@@ -99,7 +97,7 @@
       <div style="height: 2.25rem; width: 2.25rem; background: white; border-radius: 0.5rem; color: #1e56ce; display: flex; align-items: center; justify-content: center; font-weight: 700;">RT</div>
       <span style="font-size: 1.25rem; font-weight: 900; letter-spacing: -0.025em;">RTeam Hub</span>
     </div>
-    <div id="statusText" style="font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 9999px;">READY</div>
+    <div id="statusText" class="status-badge status-ready">Ready</div>
   </header>
 
   <main class="scanner-wrapper">
@@ -109,12 +107,29 @@
   <footer>
     <button id="installBtn" class="btn-install">Install App to Home Screen</button>
     <div style="font-weight: 700; color: #1e293b; font-size: 1rem;">Attendance Scanner</div>
-    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Center QR in frame</div>
+    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; text-transform: uppercase;">Center QR in frame</div>
   </footer>
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzNp7960JWjeDPKH64zH-8ozh07BlxKZdjQVafNfd5A0CXeF_vHCG2o0Zo-ayveuIG5nQ/exec";
     let isScanning = false;
+    let deferredPrompt;
+
+    // 1. Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); });
+    }
+
+    // 2. Install Logic - Only shows if NOT already installed
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Check if already in standalone mode
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+          return; // Do nothing if already installed
+      }
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('installBtn').style.display = 'block';
+    });
 
     document.getElementById('installBtn').addEventListener('click', async () => {
       if (deferredPrompt) {
@@ -124,6 +139,18 @@
         deferredPrompt = null;
       }
     });
+
+    // 3. UI Status Management
+    function setStatus(state) {
+      const el = document.getElementById('statusText');
+      if (state === 'syncing') {
+        el.textContent = 'Syncing...';
+        el.className = 'status-badge status-syncing';
+      } else {
+        el.textContent = 'Ready';
+        el.className = 'status-badge status-ready';
+      }
+    }
 
     function showToast(icon, title, message, isSuccess) {
       const audio = document.getElementById(isSuccess ? 'soundSuccess' : 'soundError');
@@ -135,10 +162,11 @@
       setTimeout(() => toast.remove(), 3000);
     }
 
+    // 4. Scanner Logic
     async function onScanSuccess(decodedText) {
       if (isScanning) return;
       isScanning = true;
-      document.getElementById('statusText').textContent = 'SYNCING...';
+      setStatus('syncing');
 
       try {
         const data = JSON.parse(decodedText);
@@ -149,25 +177,25 @@
         })
         .then(() => {
           showToast('✅', 'Success', `${data.id || 'User'} Recorded`, true);
-          resetScanner();
+          setTimeout(resetScanner, 3000);
         })
         .catch(() => {
           showToast('❌', 'Error', 'Sync Failed', false);
-          resetScanner();
+          setTimeout(resetScanner, 3000);
         });
       } catch (e) {
         showToast('⚠️', 'Invalid QR', 'Wrong Format', false);
-        resetScanner();
+        setTimeout(resetScanner, 3000);
       }
     }
 
     function resetScanner() {
-      setTimeout(() => { isScanning = false; document.getElementById('statusText').textContent = 'READY'; }, 3000);
+      isScanning = false;
+      setStatus('ready');
     }
 
     window.addEventListener('load', () => {
       const scanner = new Html5Qrcode("reader");
-      // Adjusted qrbox to be responsive and not push content
       scanner.start(
         { facingMode: "user" }, 
         { fps: 15, qrbox: { width: 250, height: 250 } }, 
