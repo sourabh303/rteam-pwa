@@ -1,18 +1,31 @@
-const CACHE_NAME = 'rteam-cache-v1';
+const CACHE_NAME = "rteam-cache-v1";
 
-self.addEventListener('install', (event) => {
+/* Install immediately */
+self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+/* Take control immediately */
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
 });
 
-// THIS IS THE MOST IMPORTANT PART FOR THE INSTALL BUTTON
-self.addEventListener('fetch', (event) => {
+/*
+  IMPORTANT:
+  - Do NOT intercept POST requests (attendance logs)
+  - Only handle GET safely
+*/
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") {
+    return; // let POST go directly to network
+  }
+
   event.respondWith(
     fetch(event.request).catch(() => {
-      return new Response("Offline mode active");
+      return new Response(
+        "Offline mode active",
+        { headers: { "Content-Type": "text/plain" } }
+      );
     })
   );
 });
