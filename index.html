@@ -3,211 +3,249 @@
 <head>
   <meta charset="utf-8">
   <title>RTeam Hub</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1,
+                 user-scalable=no, viewport-fit=cover">
+
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e56ce">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- html5-qrcode -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
-    body { 
-      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; 
-      background-color: #f8fafc; 
-      margin: 0; 
-      display: flex; 
-      flex-direction: column; 
-      height: 100dvh; 
-      overflow: hidden; 
+    * {
+      box-sizing: border-box;
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
     }
 
-    .header { 
-      flex-shrink: 0; 
-      background: #1e56ce; 
-      color: white; 
-      padding: 1rem 1.2rem; 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      padding-top: max(1rem, env(safe-area-inset-top)); 
+    body {
+      margin: 0;
+      background: #f8fafc;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
-    .scanner-wrapper { 
-      flex: 1; 
-      min-height: 0; 
-      background: #000; 
-      position: relative; 
-      overflow: hidden; 
+    /* HEADER */
+    .header {
+      flex-shrink: 0;
+      background: #1e56ce;
+      color: white;
+      padding: max(1rem, env(safe-area-inset-top)) 1.2rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 900;
+      font-size: 1.25rem;
+    }
+
+    .logo {
+      width: 2.25rem;
+      height: 2.25rem;
+      background: white;
+      color: #1e56ce;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+    }
+
+    .status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+    }
+
+    .status-ready { background: #22c55e; color: white; }
+    .status-syncing { background: #eab308; color: white; }
+
+    /* SCANNER */
+    .scanner-wrapper {
+      flex: 1;
+      background: black;
+      position: relative;
+      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    #reader { width: 100% !important; }
-
-    footer { 
-      flex-shrink: 0; 
-      padding: 1.25rem 1.5rem; 
-      padding-bottom: calc(1rem + env(safe-area-inset-bottom)); 
-      text-align: center; 
-      background: white; 
-      border-top: 1px solid #e2e8f0;
-      z-index: 10; 
-    }
-
-    .status-badge { 
-      font-size: 10px; 
-      font-weight: 700; 
-      padding: 0.25rem 0.75rem; 
-      border-radius: 9999px; 
-      transition: background 0.3s ease;
-      text-transform: uppercase;
-    }
-    .status-ready { background: #22c55e; color: white; }
-    .status-syncing { background: #eab308; color: white; }
-
-    .btn-install { 
-      width: 100%; 
-      background: #2563eb; 
-      color: white; 
-      padding: 0.85rem; 
-      border-radius: 12px; 
-      font-weight: 700; 
-      border: none; 
-      margin-bottom: 0.75rem; 
-      cursor: pointer; 
-      display: none; /* Hidden by default */
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-    }
-
-    /* CSS FIX: Hide button automatically if already in standalone app mode */
-    @media (display-mode: standalone) {
-      .btn-install { display: none !important; }
-    }
-
-    /* Mirror front camera preview (selfie-style) */
-    #reader video {
+    /* 🔥 TRUE MIRROR FIX (video + canvas) */
+    #reader {
+      width: 100% !important;
+      height: 100% !important;
       transform: scaleX(-1);
     }
 
+    /* Prevent double flip */
+    #reader video {
+      transform: none !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
 
-    .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); z-index: 9999; text-align: center; width: 80%; }
+    /* FOOTER */
+    footer {
+      flex-shrink: 0;
+      background: white;
+      padding: 1.25rem 1.5rem calc(1rem + env(safe-area-inset-bottom));
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    footer h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 800;
+      color: #1e293b;
+    }
+
+    footer p {
+      margin: 0.25rem 0 0;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 2rem;
+      border-radius: 24px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      z-index: 9999;
+      text-align: center;
+      width: 80%;
+    }
   </style>
-
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
-<body>
-  <audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
-  <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" preload="auto"></audio>
 
+<body>
+
+  <!-- AUDIO -->
+  <audio id="soundSuccess"
+         src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"
+         preload="auto"></audio>
+
+  <audio id="soundError"
+         src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"
+         preload="auto"></audio>
+
+  <!-- HEADER -->
   <header class="header">
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
-      <div style="height: 2.25rem; width: 2.25rem; background: white; border-radius: 0.5rem; color: #1e56ce; display: flex; align-items: center; justify-content: center; font-weight: 700;">RT</div>
-      <span style="font-size: 1.25rem; font-weight: 900; letter-spacing: -0.025em;">RTeam Hub</span>
+    <div class="brand">
+      <div class="logo">RT</div>
+      RTeam Hub
     </div>
     <div id="statusText" class="status-badge status-ready">Ready</div>
   </header>
 
+  <!-- SCANNER -->
   <main class="scanner-wrapper">
     <div id="reader"></div>
   </main>
 
+  <!-- FOOTER -->
   <footer>
-    <button id="installBtn" class="btn-install">Install App to Home Screen</button>
-    <div style="font-weight: 700; color: #1e293b; font-size: 1rem;">Attendance Scanner</div>
-    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; text-transform: uppercase;">Center QR in frame</div>
+    <h3>Attendance Scanner</h3>
+    <p>Center QR in frame</p>
   </footer>
 
-  <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzeKiMJm15lvl8ptu7kYHqoMQCdEKGgY1n1McoubRgpkzlp5ZLbTWm4wGxGmUqQWGnm/exec";
-    let isScanning = false;
-    let deferredPrompt;
+<script>
+  const GAS_URL =
+    "https://script.google.com/macros/s/AKfycbzeKiMJm15lvl8ptu7kYHqoMQCdEKGgY1n1McoubRgpkzlp5ZLbTWm4wGxGmUqQWGnm/exec";
 
-    // 1. Service Worker Registration
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); });
+  let isScanning = false;
+
+  function setStatus(state) {
+    const el = document.getElementById("statusText");
+    if (state === "syncing") {
+      el.textContent = "Syncing";
+      el.className = "status-badge status-syncing";
+    } else {
+      el.textContent = "Ready";
+      el.className = "status-badge status-ready";
     }
+  }
 
-    // 2. Install Logic - Only shows if NOT already installed
-    window.addEventListener('beforeinstallprompt', (e) => {
-      // Check if already in standalone mode
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-          return; // Do nothing if already installed
-      }
-      e.preventDefault();
-      deferredPrompt = e;
-      document.getElementById('installBtn').style.display = 'block';
-    });
+  function showToast(icon, title, message, success) {
+    const audio = document.getElementById(
+      success ? "soundSuccess" : "soundError"
+    );
+    audio.play().catch(() => {});
 
-    document.getElementById('installBtn').addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') document.getElementById('installBtn').style.display = 'none';
-        deferredPrompt = null;
-      }
-    });
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.innerHTML = `
+      <div style="font-size:3.5rem">${icon}</div>
+      <div style="font-size:1.5rem;font-weight:900">${title}</div>
+      <div style="color:#64748b;margin-top:0.5rem">${message}</div>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
 
-    // 3. UI Status Management
-    function setStatus(state) {
-      const el = document.getElementById('statusText');
-      if (state === 'syncing') {
-        el.textContent = 'Syncing...';
-        el.className = 'status-badge status-syncing';
-      } else {
-        el.textContent = 'Ready';
-        el.className = 'status-badge status-ready';
-      }
-    }
+  async function onScanSuccess(decodedText) {
+    if (isScanning) return;
+    isScanning = true;
+    setStatus("syncing");
 
-    function showToast(icon, title, message, isSuccess) {
-      const audio = document.getElementById(isSuccess ? 'soundSuccess' : 'soundError');
-      audio.play().catch(() => {});
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.innerHTML = `<div style="font-size: 3.75rem; margin-bottom: 1rem;">${icon}</div><div style="font-size: 1.5rem; font-weight: 900;">${title}</div><div style="color: #64748b; margin-top: 0.5rem;">${message}</div>`;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    }
+    try {
+      const data = JSON.parse(decodedText);
 
-    // 4. Scanner Logic
-    async function onScanSuccess(decodedText) {
-      if (isScanning) return;
-      isScanning = true;
-      setStatus('syncing');
-
-      try {
-        const data = JSON.parse(decodedText);
-        fetch(GAS_URL, {
-          method: 'POST',
-          mode: 'no-cors', 
-          body: JSON.stringify({ workerId: data.id || "Unknown" })
-        })
-        .then(() => {
-          showToast('✅', 'Success', `${data.id || 'User'} Recorded`, true);
-          setTimeout(resetScanner, 3000);
-        })
-        .catch(() => {
-          showToast('❌', 'Error', 'Sync Failed', false);
-          setTimeout(resetScanner, 3000);
-        });
-      } catch (e) {
-        showToast('⚠️', 'Invalid QR', 'Wrong Format', false);
+      fetch(GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({ workerId: data.id || "UNKNOWN" })
+      })
+      .then(() => {
+        showToast("✅", "Success", `${data.id || "User"} Recorded`, true);
         setTimeout(resetScanner, 3000);
-      }
-    }
+      })
+      .catch(() => {
+        showToast("❌", "Error", "Sync Failed", false);
+        setTimeout(resetScanner, 3000);
+      });
 
-    function resetScanner() {
-      isScanning = false;
-      setStatus('ready');
+    } catch {
+      showToast("⚠️", "Invalid QR", "Wrong Format", false);
+      setTimeout(resetScanner, 3000);
     }
+  }
 
-    window.addEventListener('load', () => {
-      const scanner = new Html5Qrcode("reader");
-      scanner.start(
-        { facingMode: "user" }, 
-        { fps: 15, qrbox: { width: 250, height: 250 } }, 
-        onScanSuccess
-      ).catch(err => console.error(err));
-    });
-  </script>
+  function resetScanner() {
+    isScanning = false;
+    setStatus("ready");
+  }
+
+  window.addEventListener("load", () => {
+    const scanner = new Html5Qrcode("reader");
+
+    scanner.start(
+      { facingMode: "user" },      // FRONT CAMERA
+      { fps: 15, qrbox: 250 },
+      onScanSuccess
+    ).catch(console.error);
+  });
+</script>
+
 </body>
 </html>
