@@ -50,17 +50,24 @@ footer{
   text-align:center;border-top:1px solid #e2e8f0
 }
 
-/* INSTALL BUTTON */
-.install-btn{
+/* BUTTONS */
+.install-btn,
+.camera-btn{
   width:100%;
   padding:.85rem;
-  background:#2563eb;
-  color:white;
   border:none;
   border-radius:14px;
   font-weight:800;
   margin-bottom:.75rem;
+}
+.install-btn{
+  background:#2563eb;
+  color:white;
   display:none;
+}
+.camera-btn{
+  background:#0f172a;
+  color:white;
 }
 
 /* Hide install button inside PWA */
@@ -95,14 +102,20 @@ footer{
 
 <footer>
   <button id="installBtn" class="install-btn">Install App</button>
+  <button id="cameraBtn" class="camera-btn">Switch Camera</button>
   <h3>Attendance Scanner</h3>
   <p style="font-size:.75rem;color:#94a3b8">Center QR in frame</p>
 </footer>
 
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzeKiMJm15lvl8ptu7kYHqoMQCdEKGgY1n1McoubRgpkzlp5ZLbTWm4wGxGmUqQWGnm/exec";
+
 let isScanning = false;
 let deferredPrompt;
+
+let scanner = null;
+let availableCameras = [];
+let currentCameraIndex = 0;
 
 /* DEVICE UUID */
 function getUUID(){
@@ -116,7 +129,6 @@ function getUUID(){
 
 /* INSTALL BUTTON LOGIC */
 const installBtn = document.getElementById("installBtn");
-
 window.addEventListener("beforeinstallprompt", (e)=>{
   if (window.matchMedia("(display-mode: standalone)").matches) return;
   e.preventDefault();
@@ -142,14 +154,14 @@ function setStatus(state){
 
 function toast(icon,title,msg,ok){
   document.getElementById(ok ? "soundSuccess" : "soundError").play().catch(()=>{});
-  const t = document.createElement("div");
-  t.className = "toast";
-  t.innerHTML = `<div style="font-size:3rem">${icon}</div><b>${title}</b><div>${msg}</div>`;
+  const t=document.createElement("div");
+  t.className="toast";
+  t.innerHTML=`<div style="font-size:3rem">${icon}</div><b>${title}</b><div>${msg}</div>`;
   document.body.appendChild(t);
   setTimeout(()=>t.remove(),3000);
 }
 
-/* Accept JSON QR or plain text ID QR */
+/* Accept JSON QR or plain-text employee ID */
 function parseQrPayload(txt){
   try{
     const d = JSON.parse(txt);
@@ -170,15 +182,13 @@ function parseQrPayload(txt){
 
 /* SCAN */
 async function onScanSuccess(txt){
-  if (isScanning) return;
+  if(isScanning) return;
   isScanning = true;
   setStatus("syncing");
 
   try{
     const parsed = parseQrPayload(txt);
-    if (!parsed.workerId) {
-      throw new Error("Empty worker ID");
-    }
+    if (!parsed.workerId) throw new Error("Empty worker ID");
 
     await fetch(GAS_URL,{
       method:"POST",
@@ -198,28 +208,83 @@ async function onScanSuccess(txt){
     toast("⚠️","Sync failed","Invalid QR or network issue",false);
   }finally{
     setTimeout(()=>{
-      isScanning = false;
+      isScanning=false;
       setStatus("ready");
     },1500);
   }
 }
 
-/* START SCANNER */
-window.onload = async ()=>{
-  const scanner = new Html5Qrcode("reader");
+/* CAMERA CONTROL */
+const cameraBtn = document.getElementById("cameraBtn");
+
+async function startScannerWithCamera(cameraConfig){
+  await scanner.start(
+    cameraConfig,
+    { fps: 10, qrbox: { width: 260, height: 260 } },
+    onScanSuccess
+  );
+}
+
+async function initScanner(){
+  scanner = new Html5Qrcode("reader");
 
   try{
-    await scanner.start(
-      { facingMode: { exact: "environment" } },
-      { fps: 10, qrbox: { width: 260, height: 260 } },
-      onScanSuccess
+    availableCameras = await Html5Qrcode.getCameras();
+  }catch(err){
+    console.error("Camera list error:", err);
+    availableCameras = [];
+  }
+
+  if (availableCameras.length > 0) {
+    const rearIdx = availableCameras.findIndex(c =>
+      /back|rear|environment/i.test(c.label || "")
     );
+    currentCameraIndex = rearIdx >= 0 ? rearIdx : 0;
+    await startScannerWithCamera({ deviceId: { exact: availableCameras[currentCameraIndex].id } });
+    cameraBtn.style.display = availableCameras.length > 1 ? "block" : "none";
+    return;
+  }
+
+  // fallback (if labels/deviceIds not available yet)
+  try{
+    await startScannerWithCamera({ facingMode: { exact: "environment" } });
   }catch{
-    await scanner.start(
-      { facingMode: "user" },
-      { fps: 10, qrbox: { width: 260, height: 260 } },
-      onScanSuccess
-    );
+    await startScannerWithCamera({ facingMode: "user" });
+  }
+  cameraBtn.style.display = "none";
+}
+
+cameraBtn.addEventListener("click", async ()=>{
+  if (!scanner || availableCameras.length < 2) return;
+
+  try{
+    setStatus("syncing");
+    cameraBtn.disabled = true;
+
+    await scanner.stop();
+    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+
+    await startScannerWithCamera({
+      deviceId: { exact: availableCameras[currentCameraIndex].id }
+    });
+
+    toast("📷","Camera switched",availableCameras[currentCameraIndex].label || "Camera changed",true);
+  }catch(err){
+    console.error("Camera switch error:", err);
+    toast("⚠️","Camera error","Could not switch camera",false);
+  }finally{
+    cameraBtn.disabled = false;
+    setStatus("ready");
+  }
+});
+
+/* START */
+window.onload = async ()=>{
+  try{
+    await initScanner();
+  }catch(err){
+    console.error("Scanner init failed:", err);
+    toast("⚠️","Scanner failed","Camera permission/device issue",false);
   }
 };
 </script>
