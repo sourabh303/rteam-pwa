@@ -38,11 +38,9 @@ body{margin:0;background:#f8fafc;height:100dvh;display:flex;flex-direction:colum
 .scanner-wrapper{
   flex:1;background:black;display:flex;align-items:center;justify-content:center
 }
-
-/* TRUE MIRROR */
-#reader{width:100%!important;height:100%!important;transform:scaleX(-1)}
+#reader{width:100%!important;height:100%!important}
 #reader video{
-  transform:none!important;width:100%!important;height:100%!important;
+  width:100%!important;height:100%!important;
   object-fit:cover!important
 }
 
@@ -136,58 +134,93 @@ installBtn.addEventListener("click", async ()=>{
 
 /* UI */
 function setStatus(state){
-  const el=document.getElementById("statusText");
-  el.textContent = state==="syncing" ? "Syncing" : "Ready";
-  el.className = "status-badge " + (state==="syncing"?"status-syncing":"status-ready");
+  const el = document.getElementById("statusText");
+  const syncing = state === "syncing";
+  el.textContent = syncing ? "Syncing" : "Ready";
+  el.className = "status-badge " + (syncing ? "status-syncing" : "status-ready");
 }
 
 function toast(icon,title,msg,ok){
-  document.getElementById(ok?"soundSuccess":"soundError").play().catch(()=>{});
-  const t=document.createElement("div");
-  t.className="toast";
-  t.innerHTML=`<div style="font-size:3rem">${icon}</div><b>${title}</b><div>${msg}</div>`;
+  document.getElementById(ok ? "soundSuccess" : "soundError").play().catch(()=>{});
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `<div style="font-size:3rem">${icon}</div><b>${title}</b><div>${msg}</div>`;
   document.body.appendChild(t);
   setTimeout(()=>t.remove(),3000);
 }
 
+/* Accept JSON QR or plain text ID QR */
+function parseQrPayload(txt){
+  try{
+    const d = JSON.parse(txt);
+    const workerId = (d.id ?? d.workerId ?? "").toString().trim();
+    return {
+      workerId,
+      workerName: (d.name ?? d.workerName ?? "").toString(),
+      department: (d.dept ?? d.department ?? "").toString()
+    };
+  }catch{
+    return {
+      workerId: txt.toString().trim(),
+      workerName: "",
+      department: ""
+    };
+  }
+}
+
 /* SCAN */
 async function onScanSuccess(txt){
-  if(isScanning) return;
+  if (isScanning) return;
   isScanning = true;
   setStatus("syncing");
 
   try{
-    const d = JSON.parse(txt);
-    fetch(GAS_URL,{
+    const parsed = parseQrPayload(txt);
+    if (!parsed.workerId) {
+      throw new Error("Empty worker ID");
+    }
+
+    await fetch(GAS_URL,{
       method:"POST",
       mode:"no-cors",
-      body:JSON.stringify({
-        workerId: d.id,
-        workerName: d.name || "",
-        department: d.dept || "",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workerId: parsed.workerId,
+        workerName: parsed.workerName,
+        department: parsed.department,
         deviceUUID: getUUID()
       })
     });
-    toast("✅","Recorded",d.id,true);
-  }catch{
-    toast("⚠️","Invalid QR","Wrong format",false);
-  }
 
-  setTimeout(()=>{
-    isScanning=false;
-    setStatus("ready");
-  },3000);
+    toast("✅","Recorded",parsed.workerId,true);
+  }catch(err){
+    console.error("Scan/Sync error:", err);
+    toast("⚠️","Sync failed","Invalid QR or network issue",false);
+  }finally{
+    setTimeout(()=>{
+      isScanning = false;
+      setStatus("ready");
+    },1500);
+  }
 }
 
 /* START SCANNER */
-window.onload=()=>{
-  new Html5Qrcode("reader")
-    .start(
-      {facingMode:"user"},
-      {fps:15,qrbox:250},
+window.onload = async ()=>{
+  const scanner = new Html5Qrcode("reader");
+
+  try{
+    await scanner.start(
+      { facingMode: { exact: "environment" } },
+      { fps: 10, qrbox: { width: 260, height: 260 } },
       onScanSuccess
-    )
-    .catch(console.error);
+    );
+  }catch{
+    await scanner.start(
+      { facingMode: "user" },
+      { fps: 10, qrbox: { width: 260, height: 260 } },
+      onScanSuccess
+    );
+  }
 };
 </script>
 
