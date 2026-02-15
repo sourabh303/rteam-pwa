@@ -216,6 +216,7 @@ async function onScanSuccess(txt){
 
 /* CAMERA CONTROL */
 const cameraBtn = document.getElementById("cameraBtn");
+let currentFacingMode = "environment"; // fallback mode when camera IDs are not usable
 
 async function startScannerWithCamera(cameraConfig){
   await scanner.start(
@@ -227,52 +228,54 @@ async function startScannerWithCamera(cameraConfig){
 
 async function initScanner(){
   scanner = new Html5Qrcode("reader");
+  cameraBtn.style.display = "block"; // always visible
 
-  try{
+  try {
     availableCameras = await Html5Qrcode.getCameras();
-  }catch(err){
-    console.error("Camera list error:", err);
+  } catch {
     availableCameras = [];
   }
 
-  if (availableCameras.length > 0) {
+  if (availableCameras.length > 1) {
     const rearIdx = availableCameras.findIndex(c =>
       /back|rear|environment/i.test(c.label || "")
     );
     currentCameraIndex = rearIdx >= 0 ? rearIdx : 0;
     await startScannerWithCamera({ deviceId: { exact: availableCameras[currentCameraIndex].id } });
-    cameraBtn.style.display = availableCameras.length > 1 ? "block" : "none";
     return;
   }
 
-  // fallback (if labels/deviceIds not available yet)
-  try{
-    await startScannerWithCamera({ facingMode: { exact: "environment" } });
-  }catch{
+  // fallback for installed PWA / limited camera list
+  try {
+    currentFacingMode = "environment";
+    await startScannerWithCamera({ facingMode: { ideal: "environment" } });
+  } catch {
+    currentFacingMode = "user";
     await startScannerWithCamera({ facingMode: "user" });
   }
-  cameraBtn.style.display = "none";
 }
 
 cameraBtn.addEventListener("click", async ()=>{
-  if (!scanner || availableCameras.length < 2) return;
+  if (!scanner) return;
 
   try{
     setStatus("syncing");
     cameraBtn.disabled = true;
-
     await scanner.stop();
-    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
 
-    await startScannerWithCamera({
-      deviceId: { exact: availableCameras[currentCameraIndex].id }
-    });
-
-    toast("📷","Camera switched",availableCameras[currentCameraIndex].label || "Camera changed",true);
-  }catch(err){
+    if (availableCameras.length > 1) {
+      currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+      await startScannerWithCamera({ deviceId: { exact: availableCameras[currentCameraIndex].id } });
+      toast("📷","Camera switched",availableCameras[currentCameraIndex].label || "Camera changed",true);
+    } else {
+      currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+      await startScannerWithCamera({ facingMode: { ideal: currentFacingMode } });
+      toast("📷","Camera switched",currentFacingMode === "environment" ? "Back camera" : "Front camera",true);
+    }
+  } catch (err) {
     console.error("Camera switch error:", err);
     toast("⚠️","Camera error","Could not switch camera",false);
-  }finally{
+  } finally {
     cameraBtn.disabled = false;
     setStatus("ready");
   }
